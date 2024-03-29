@@ -1,5 +1,7 @@
 import subprocess
 import os
+import platform
+import requests
 
 def install_git():
     # Verificar si Git está instalado
@@ -11,6 +13,31 @@ def install_git():
         print("Installing Git...")
         subprocess.run(['winget', 'install', '--id', 'Git.Git', '-e', '--source', 'winget'], check=True)
 
+def install_python():
+    # Verificar si Python está instalado
+    try:
+        subprocess.run(['python', '--version'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        print("Python already installed.")
+    except subprocess.CalledProcessError:
+        # Si Python no está instalado, instalarlo
+        print("Installing Python...")
+        if platform.system() == 'Windows':
+            # Descargar el instalador de Python desde python.org
+            python_download_url = 'https://www.python.org/ftp/python/3.12.2/python-3.12.2-amd64.exe'
+            python_installer_path = 'python_installer.exe'
+            print("Downloading Python installer...")
+            response = requests.get(python_download_url)
+            with open(python_installer_path, 'wb') as f:
+                f.write(response.content)
+            # Ejecutar el instalador descargado
+            print("Running Python installer...")
+            subprocess.run([python_installer_path, '/quiet', 'InstallAllUsers=1', 'PrependPath=1'], check=True)
+            print("Python installed successfully.")
+            # Eliminar el instalador después de la instalación
+            os.remove(python_installer_path)
+        else:
+            print("Python installation is not supported on this platform.")
+            
 def install_dependencies():
     # Cambiar al directorio yolov5
     os.chdir('yolov5')
@@ -31,6 +58,9 @@ def clone_repository():
 if __name__ == "__main__":
     # Instalar Git fuera del entorno virtual
     install_git()
+    
+    # Instalar Python si no está instalado
+    install_python()
     
     # Crear y activar un entorno virtual
     subprocess.run(['python', '-m', 'venv', 'myenv'], check=True)
