@@ -29,6 +29,17 @@ def clone_repository():
         os.chdir('yolov5')  # Cambiar al directorio clonado
 
 if __name__ == "__main__":
+    # Instalar Git fuera del entorno virtual
     install_git()
-    clone_repository()
-    install_dependencies()
+    
+    # Crear y activar un entorno virtual
+    subprocess.run(['python', '-m', 'venv', 'myenv'], check=True)
+    activate_path = os.path.join('myenv', 'Scripts', 'activate')
+    subprocess.run([activate_path], shell=True)
+    
+    try:
+        clone_repository()
+        install_dependencies()
+    finally:
+        deactivate_path = os.path.join('myenv', 'Scripts', 'deactivate')
+        subprocess.run([deactivate_path], shell=True)
