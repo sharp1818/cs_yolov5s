@@ -19,7 +19,7 @@ deepsort = DeepSort(
 
 arduino = None
 CONFIDENCE_THRESHOLD = 0.8
-DETECTION_Y_PORCENT = 0.6
+DETECTION_Y_PORCENT = 0.7
 
 def detect_arduino_port():
     arduino_ports = []
@@ -71,7 +71,6 @@ def firts_object(trackers):
             bbox = first_track.to_ltrb()
             return bbox
     return None
-
 
 def aim(bbox, mouse_x, mouse_y, arduino):
     centerX = int((bbox[2] + bbox[0]) / 2)
