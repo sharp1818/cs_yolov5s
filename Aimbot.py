@@ -1,6 +1,6 @@
 import mss
 import numpy as np
-# import cv2
+import math
 import keyboard
 import torch 
 import serial
@@ -19,8 +19,7 @@ deepsort = DeepSort(
 
 arduino = None
 CONFIDENCE_THRESHOLD = 0.8
-DETECTION_Y_PORCENT = 0.8
-# COLORS = [(100,100,100),(0, 255, 0), (150, 150, 0), (0, 0, 255), (255, 0, 0)]
+DETECTION_Y_PORCENT = 0.6
 
 def detect_arduino_port():
     arduino_ports = []
@@ -38,14 +37,48 @@ def init_arduino():
         print("No se detectaron puertos de Arduino. Verifica la conexión.")
         return(arduino)
 
-def aim(bbox, arduino):
-    centerX = int((bbox[2] + bbox[0]) / 2)
+def find_nearest_object(trackers):
+    nearest_distance = float('inf')
+    nearest_object_bbox = None
+    mouse_x, mouse_y = pyautogui.position()
+    for track in trackers:
+        if track.is_confirmed():
+            bbox = track.to_ltrb()
+            bbox_center_x = (bbox[0] + bbox[2]) / 2
+            bbox_center_y = (bbox[1] + bbox[3]) / 2
+            distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
+            if distance < nearest_distance:
+                nearest_distance = distance
+                nearest_object_bbox = track.to_ltrb()
+    return nearest_object_bbox, mouse_x, mouse_y
+
+def max_conf_object(trackers):
+    max_det_conf = 0
+    max_det_conf_bbox = None
+    for track in trackers:
+        if track.is_confirmed():
+            det_conf = track.det_conf
+            if det_conf is not None and det_conf > max_det_conf:
+                max_det_conf = det_conf
+                max_det_conf_bbox = track.to_ltrb()
+    if max_det_conf_bbox is not None:
+        return max_det_conf_bbox
+
+def firts_object(trackers):
+    if trackers:
+        first_track = trackers[0]
+        if first_track.is_confirmed():
+            bbox = first_track.to_ltrb()
+            return bbox
+    return None
+
+
+def aim(bbox, mouse_x, mouse_y, arduino):
     centerX = int((bbox[2] + bbox[0]) / 2)
     centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
-    mouse_x, mouse_y = pyautogui.position()
-
     moveX = int((centerX - mouse_x))
     moveY = int((-centerY + mouse_y))
+    print(moveX,moveY)
     return arduino.write((str(moveX) + ":" + str(moveY) + 'x').encode())
 
 def convert_to_bbs(results, classes):
@@ -83,30 +116,16 @@ def main():
     
         while True:
             img = np.array(Image.frombytes('RGB', (width, height), sct.grab(monitor).rgb))
-            results = model(img)
-            
+            results = model(img)     
             bbs = convert_to_bbs(results, classes)    
-            max_det_conf = 0
-            max_det_conf_bbox = None
-            # max_det_conf_class = None
-
             trackers = deepsort.update_tracks(bbs, frame=img)
+            bbox = max_conf_object(trackers)
+            if bbox is not None:
+                # det_class = nearest_object.det_class
+                # det_conf = nearest_object.det_conf
+                mouse_x, mouse_y = pyautogui.position()
+                aim(bbox, mouse_x, mouse_y, arduino)
 
-            for track in trackers:
-                if track.is_confirmed():
-                    bbox = track.to_ltrb()
-                    # det_class = track.det_class
-                    det_conf = track.det_conf
-                    if det_conf is not None and det_conf > max_det_conf:
-                        max_det_conf = det_conf
-                        max_det_conf_bbox = bbox
-                        # max_det_conf_class = det_class
-                        
-            if max_det_conf_bbox is not None:
-                aim(max_det_conf_bbox, arduino)
-            #     cv2.rectangle(img, (int(max_det_conf_bbox[0]), int(max_det_conf_bbox[1])), (int(max_det_conf_bbox[2]), int(max_det_conf_bbox[3])), COLORS[max_det_conf_class], 2)
-            # cv2.imshow("Object Detection", img)
-        
             if keyboard.is_pressed('j'):
                 classes = [1, 2]
                 print('ct')
@@ -116,12 +135,8 @@ def main():
             if keyboard.is_pressed('o'):
                 classes = [0]
                 print('none')
-            # if keyboard.is_pressed('q') or cv2.waitKey(1) & 0xFF == ord('q'):
-            #     break
             if keyboard.is_pressed('q') & 0xFF == ord('q'):
                 break
-
-        # cv2.destroyAllWindows()
         
 if __name__ == "__main__":
     main()
