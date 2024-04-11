@@ -19,7 +19,7 @@ deepsort = DeepSort(
 
 arduino = None
 CONFIDENCE_THRESHOLD = 0.8
-DETECTION_Y_PORCENT = 0.7
+DETECTION_Y_PORCENT = 0.5
 
 def detect_arduino_port():
     arduino_ports = []
@@ -50,7 +50,7 @@ def find_nearest_object(trackers):
             if distance < nearest_distance:
                 nearest_distance = distance
                 nearest_object_bbox = track.to_ltrb()
-    return nearest_object_bbox, mouse_x, mouse_y
+    return nearest_object_bbox
 
 def max_conf_object(trackers):
     max_det_conf = 0
@@ -79,6 +79,12 @@ def aim(bbox, mouse_x, mouse_y, arduino):
     moveY = int((-centerY + mouse_y))
     print(moveX,moveY)
     return arduino.write((str(moveX) + ":" + str(moveY) + 'x').encode())
+
+def aim_absolute(bbox, arduino):
+    centerX = int((bbox[2] + bbox[0]) / 2)
+    centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
+    print(centerX, centerY)
+    return arduino.write((str(centerX) + ":" + str(centerY) + 'x').encode())
 
 def convert_to_bbs(results, classes):
     bbs = []
@@ -119,11 +125,8 @@ def main():
             bbs = convert_to_bbs(results, classes)    
             trackers = deepsort.update_tracks(bbs, frame=img)
             bbox = max_conf_object(trackers)
-            if bbox is not None:
-                # det_class = nearest_object.det_class
-                # det_conf = nearest_object.det_conf
-                mouse_x, mouse_y = pyautogui.position()
-                aim(bbox, mouse_x, mouse_y, arduino)
+            if bbox is not None:  
+                aim_absolute(bbox, arduino)
 
             if keyboard.is_pressed('j'):
                 classes = [1, 2]
