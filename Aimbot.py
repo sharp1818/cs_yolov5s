@@ -4,7 +4,6 @@ import math
 import keyboard
 import torch 
 import serial
-import pyautogui
 from deep_sort_realtime.deepsort_tracker import DeepSort
 from PIL import Image
 import serial.tools.list_ports
@@ -61,8 +60,9 @@ def max_conf_nearest_object(trackers):
         if track.is_confirmed():
             det_conf = track.det_conf
             if det_conf is not None:
-                bbox_center_x = (track.to_ltrb()[0] + track.to_ltrb()[2]) / 2
-                bbox_center_y = (track.to_ltrb()[1] + track.to_ltrb()[3]) / 2
+                bbox = track.to_ltrb()
+                bbox_center_x = (bbox[0] + bbox[2]) / 2
+                bbox_center_y = (bbox[1] + bbox[3]) / 2
                 distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
                 
                 if det_conf > max_det_conf or (det_conf == max_det_conf and distance < nearest_distance):
@@ -172,15 +172,15 @@ def main():
             results = model(img)     
             bbs = convert_to_bbs(results, classes)    
             trackers = deepsort.update_tracks(bbs, frame=img)
-            if len(trackers) == 1:
-                print('uno')
-                bbox = max_conf_object(trackers)
-            elif len(trackers) >= 2:
-                print('muchos')
-                bbox = max_conf_nearest_object(trackers)
+            # if len(trackers) == 1:
+            #     print('uno')
+            #     bbox = max_conf_object(trackers)
+            # if len(trackers) ==2 or len(trackers) == 3 :
+            #     print('muchos')
+            #     bbox = max_conf_nearest_object(trackers)
             
             #bbox = max_conf_object(trackers)
-            #bbox = max_conf_nearest_object(trackers)
+            bbox = max_conf_nearest_object(trackers)
             if bbox is not None:  
                 aim_absolute(bbox, arduino)
 
