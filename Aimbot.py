@@ -18,7 +18,7 @@ deepsort = DeepSort(
 )
 
 arduino = None
-CONFIDENCE_THRESHOLD = 0.8
+CONFIDENCE_THRESHOLD = 0.9
 DETECTION_Y_PORCENT = 0.5
 
 def detect_arduino_port():
@@ -40,7 +40,7 @@ def init_arduino():
 def find_nearest_object(trackers):
     nearest_distance = float('inf')
     nearest_object_bbox = None
-    mouse_x, mouse_y = pyautogui.position()
+    mouse_x, mouse_y = 960, 540
     for track in trackers:
         if track.is_confirmed():
             bbox = track.to_ltrb()
@@ -51,6 +51,26 @@ def find_nearest_object(trackers):
                 nearest_distance = distance
                 nearest_object_bbox = track.to_ltrb()
     return nearest_object_bbox
+
+def max_conf_nearest_object(trackers):
+    max_det_conf = 0
+    nearest_distance = float('inf')
+    selected_bbox = None
+    mouse_x, mouse_y = 960, 540
+    for track in trackers:
+        if track.is_confirmed():
+            det_conf = track.det_conf
+            if det_conf is not None:
+                bbox_center_x = (track.to_ltrb()[0] + track.to_ltrb()[2]) / 2
+                bbox_center_y = (track.to_ltrb()[1] + track.to_ltrb()[3]) / 2
+                distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
+                
+                if det_conf > max_det_conf or (det_conf == max_det_conf and distance < nearest_distance):
+                    max_det_conf = det_conf
+                    nearest_distance = distance
+                    selected_bbox = track.to_ltrb()
+                
+    return selected_bbox
 
 def max_conf_object(trackers):
     max_det_conf = 0
@@ -72,18 +92,46 @@ def firts_object(trackers):
             return bbox
     return None
 
+def min_id_object(trackers):
+    min_id = float('inf')
+    
+    for track in trackers:
+        if track.track_id < min_id:
+            min_id = track.track_id
+            min_id_object_bbox = track.to_ltrb()
+    if min_id_object_bbox is not None:
+        return min_id_object_bbox
+    
+def max_conf_min_id_object(trackers):
+    max_det_conf = 0
+    min_id = float('inf')
+    max_conf_min_id_bbox = None
+    
+    for track in trackers:
+        if track.det_conf is not None: 
+            if track.det_conf > max_det_conf:
+                max_det_conf = track.det_conf
+                min_id = track.track_id
+                max_conf_min_id_bbox = track.to_ltrb()
+            elif track.det_conf == max_det_conf:
+                if track.track_id < min_id:
+                    min_id = track.track_id
+                    max_conf_min_id_bbox = track.to_ltrb()
+                
+    return max_conf_min_id_bbox
+
 def aim(bbox, mouse_x, mouse_y, arduino):
     centerX = int((bbox[2] + bbox[0]) / 2)
     centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
     moveX = int((centerX - mouse_x))
     moveY = int((-centerY + mouse_y))
-    print(moveX,moveY)
+  #  print(moveX,moveY)
     return arduino.write((str(moveX) + ":" + str(moveY) + 'x').encode())
 
 def aim_absolute(bbox, arduino):
     centerX = int((bbox[2] + bbox[0]) / 2)
     centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
-    print(centerX, centerY)
+  #  print(centerX, centerY)
     return arduino.write((str(centerX) + ":" + str(centerY) + 'x').encode())
 
 def convert_to_bbs(results, classes):
@@ -118,13 +166,21 @@ def main():
         }
         
         classes = [0]
-    
+        bbox = None
         while True:
             img = np.array(Image.frombytes('RGB', (width, height), sct.grab(monitor).rgb))
             results = model(img)     
             bbs = convert_to_bbs(results, classes)    
             trackers = deepsort.update_tracks(bbs, frame=img)
-            bbox = max_conf_object(trackers)
+            if len(trackers) == 1:
+                print('uno')
+                bbox = max_conf_object(trackers)
+            elif len(trackers) >= 2:
+                print('muchos')
+                bbox = max_conf_nearest_object(trackers)
+            
+            #bbox = max_conf_object(trackers)
+            #bbox = max_conf_nearest_object(trackers)
             if bbox is not None:  
                 aim_absolute(bbox, arduino)
 
