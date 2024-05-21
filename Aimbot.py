@@ -7,6 +7,7 @@ import serial
 from deep_sort_realtime.deepsort_tracker import DeepSort
 from PIL import Image
 import serial.tools.list_ports
+import cv2
 
 max_age = 5  # Reducir para mantener un seguimiento más corto y fresco de los objetos
 max_iou_distance = 0.7  # Ajustar según la superposición requerida entre cuadros delimitadores
@@ -131,7 +132,7 @@ def aim(bbox, mouse_x, mouse_y, arduino):
 def aim_absolute(bbox, arduino):
     centerX = int((bbox[2] + bbox[0]) / 2)
     centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
-  #  print(centerX, centerY)
+    print(centerX, centerY)
     return arduino.write((str(centerX) + ":" + str(centerY) + 'x').encode())
 
 def convert_to_bbs(results, classes):
@@ -145,6 +146,7 @@ def convert_to_bbs(results, classes):
     return bbs
 
 def main():
+    global CONFIDENCE_THRESHOLD
     arduino = init_arduino()
     if not arduino:
         return
@@ -172,29 +174,60 @@ def main():
             results = model(img)     
             bbs = convert_to_bbs(results, classes)    
             trackers = deepsort.update_tracks(bbs, frame=img)
-            # if len(trackers) == 1:
-            #     print('uno')
-            #     bbox = max_conf_object(trackers)
-            # if len(trackers) ==2 or len(trackers) == 3 :
-            #     print('muchos')
-            #     bbox = max_conf_nearest_object(trackers)
+            largest_bbox = None
+            largest_area = 0
             
-            #bbox = max_conf_object(trackers)
-            bbox = max_conf_nearest_object(trackers)
-            if bbox is not None:  
-                aim_absolute(bbox, arduino)
-
+            for track in trackers:
+                bbox = track.to_tlwh()  # Obtiene las coordenadas superior izquierda, ancho y alto del bounding box
+                bbox = [int(coord) for coord in bbox]  # Convierte las coordenadas a enteros
+                det_conf = track.det_conf  # Obtener la confianza del detector
+                if det_conf is not None and det_conf > CONFIDENCE_THRESHOLD:
+                    area = bbox[2] * bbox[3]
+                    if area > largest_area:
+                        largest_area = area
+                        largest_bbox = bbox
+            if largest_bbox is not None:
+                # cv2.rectangle(img, (largest_bbox[0], largest_bbox[1]), (largest_bbox[0] + largest_bbox[2], largest_bbox[1] + largest_bbox[3]), (255, 255, 0), 2)
+                # Verificar si track.track_id y det_conf son None antes de formatear la cadena
+                track_id = track.track_id if track.track_id is not None else "Unknown"
+                det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
+                text = f"ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
+                # cv2.putText(img, text, (largest_bbox[0], largest_bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                center_x = largest_bbox[0] + largest_bbox[2] // 2
+                center_y = largest_bbox[1] + largest_bbox[3] // 2
+                arduino.write((str(center_x) + ":" + str(center_y) + 'x').encode())
+            # cv2.imshow('Object Tracking', img)
+            
+            #bbox = max_conf_nearest_object(trackers)
+            # if bbox is not None:  
+            #     aim_absolute(bbox, arduino)
+            #     cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
+            # cv2.imshow('Object Detection', img)
+                
+            if keyboard.is_pressed('i'):
+                classes = [2]
+                CONFIDENCE_THRESHOLD = 0.6
+                print('ct_head')
             if keyboard.is_pressed('j'):
-                classes = [1, 2]
-                print('ct')
-            if keyboard.is_pressed('k'):
-                classes = [3, 4]
-                print('t')
+                classes = [1]
+                CONFIDENCE_THRESHOLD = 0.93
+                print('ct_body')
             if keyboard.is_pressed('o'):
+                classes = [4]
+                CONFIDENCE_THRESHOLD = 0.6
+                print('t_head')
+            if keyboard.is_pressed('k'):
+                CONFIDENCE_THRESHOLD = 0.93
+                classes = [3]
+                print('t_body')
+            if keyboard.is_pressed('l'):
                 classes = [0]
                 print('none')
-            if keyboard.is_pressed('q') & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord('q'):  # Agrega esto para actualizar la ventana de OpenCV
                 break
+            # if keyboard.is_pressed('q') & 0xFF == ord('q'):
+            #     break
+    cv2.destroyAllWindows()
         
 if __name__ == "__main__":
     main()
