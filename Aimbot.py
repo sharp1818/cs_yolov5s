@@ -8,6 +8,7 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 from PIL import Image
 import serial.tools.list_ports
 import cv2
+import time
 
 max_age = 5  # Reducir para mantener un seguimiento más corto y fresco de los objetos
 max_iou_distance = 0.7  # Ajustar según la superposición requerida entre cuadros delimitadores
@@ -145,8 +146,83 @@ def convert_to_bbs(results, classes):
             bbs.append((bbox, confidence, class_id))
     return bbs
 
+def adjust_center(center_x, center_y, mouse_x, mouse_y):
+    _center_x = abs(center_x - mouse_x)
+    _center_y = abs(center_y - mouse_y)
+    adjusted_center_x = center_x
+    adjusted_center_y = center_y
+    # Ajuste en el eje X (izquierda y derecha)
+    if center_x > mouse_x:
+        if _center_x < mouse_x / 32:
+            adjusted_center_x = int(center_x)
+        elif _center_x < mouse_x / 16:
+            adjusted_center_x = int(center_x * 1.02)
+        elif _center_x < mouse_x / 10:
+            adjusted_center_x = int(center_x * 1.04)
+        elif _center_x < mouse_x / 5:
+            adjusted_center_x = int(center_x * 1.06)
+        elif _center_x < mouse_x / 3.2:
+            adjusted_center_x = int(center_x * 1.08)
+        elif _center_x < mouse_x / 2.4:
+            adjusted_center_x = int(center_x * 1.1)
+        elif _center_x < mouse_x / 1.6:
+            adjusted_center_x = int(center_x * 1.09)
+        elif _center_x < mouse_x / 1.4:
+            adjusted_center_x = int(center_x * 1.074)
+        elif _center_x < mouse_x / 1.25:
+            adjusted_center_x = int(center_x * 1.056)
+        elif _center_x < mouse_x / 1.1:
+            adjusted_center_x = int(center_x * 1.036)
+        elif _center_x < mouse_x:
+            adjusted_center_x = int(center_x * 1.02)
+    else:
+        if _center_x < mouse_x / 32:
+            adjusted_center_x = int(center_x)
+        elif _center_x < mouse_x / 16:
+            adjusted_center_x = int(center_x * 0.98)
+        elif _center_x < mouse_x / 10:
+            adjusted_center_x = int(center_x * 0.96)
+        elif _center_x < mouse_x / 5:
+            adjusted_center_x = int(center_x * 0.94)
+        elif _center_x < mouse_x / 3.2:
+            adjusted_center_x = int(center_x * 0.88)
+        elif _center_x < mouse_x / 2.4:
+            adjusted_center_x = int(center_x * 0.8)
+        elif _center_x < mouse_x / 1.6:
+            adjusted_center_x = int(center_x * 0.72)
+        elif _center_x < mouse_x / 1.4:
+            adjusted_center_x = int(center_x * 0.65)
+        elif _center_x < mouse_x / 1.25:
+            adjusted_center_x = int(center_x * 0.58)
+        elif _center_x < mouse_x / 1.1:
+            adjusted_center_x = int(center_x * 0.5)
+        elif _center_x < mouse_x:
+            adjusted_center_x = int(center_x * 0.4)
+    # Ajuste en el eje Y (arriba y abajo)
+    if center_y > mouse_y:
+        if _center_y < mouse_y / 6:
+            adjusted_center_y = int(center_y * 1.03)
+        elif _center_y < mouse_y / 3:
+            adjusted_center_y = int(center_y * 1.08)
+        elif _center_y < mouse_y * 2 / 3:
+            adjusted_center_y = int(center_y * 1.12)
+        elif _center_y < mouse_y:
+            adjusted_center_y = int(center_y * 1.14)
+    else:
+        if _center_y < mouse_y / 6:
+            adjusted_center_y = int(center_y * 1.03)
+        elif _center_y < mouse_y / 3:
+            adjusted_center_y = int(center_y * 0.9)
+        elif _center_y < mouse_y * 2 / 3:
+            adjusted_center_y = int(center_y * 0.7)
+        elif _center_y < mouse_y:
+            adjusted_center_y = int(center_y * 0.3)
+
+    return adjusted_center_x, adjusted_center_y
+
 def main():
     global CONFIDENCE_THRESHOLD
+    global DETECTION_Y_PORCENT
     arduino = init_arduino()
     if not arduino:
         return
@@ -169,6 +245,7 @@ def main():
         
         classes = [0]
         bbox = None
+        
         while True:
             img = np.array(Image.frombytes('RGB', (width, height), sct.grab(monitor).rgb))
             results = model(img)     
@@ -176,58 +253,85 @@ def main():
             trackers = deepsort.update_tracks(bbs, frame=img)
             largest_bbox = None
             largest_area = 0
-            
+            mouse_x, mouse_y = 960, 540
+            nearest_distance = float('inf')
             for track in trackers:
                 bbox = track.to_tlwh()  # Obtiene las coordenadas superior izquierda, ancho y alto del bounding box
                 bbox = [int(coord) for coord in bbox]  # Convierte las coordenadas a enteros
+                bbox_center_x = (bbox[0] + bbox[2]) / 2
+                bbox_center_y = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
                 det_conf = track.det_conf  # Obtener la confianza del detector
+                distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
+
+                # if det_conf is not None and det_conf > CONFIDENCE_THRESHOLD:
+                #     cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (255, 255, 0), 2)
+                #     # Verificar si track.track_id y det_conf son None antes de formatear la cadena
+                #     track_id = track.track_id if track.track_id is not None else "Unknown"
+                #     det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
+                #     text = f"ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
+                #     cv2.putText(img, text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+        
+                try:
+                    track_id = int(track.track_id) if track.track_id is not None else float('inf')
+                except ValueError:
+                    track_id = float('inf')
+                
                 if det_conf is not None and det_conf > CONFIDENCE_THRESHOLD:
                     area = bbox[2] * bbox[3]
-                    if area > largest_area:
+                    # if area > largest_area:
+                    #     largest_area = area
+                    #     largest_bbox = bbox
+                    if area > largest_area and distance < nearest_distance:
+                        nearest_distance = distance
                         largest_area = area
                         largest_bbox = bbox
             if largest_bbox is not None:
                 # cv2.rectangle(img, (largest_bbox[0], largest_bbox[1]), (largest_bbox[0] + largest_bbox[2], largest_bbox[1] + largest_bbox[3]), (255, 255, 0), 2)
                 # Verificar si track.track_id y det_conf son None antes de formatear la cadena
-                track_id = track.track_id if track.track_id is not None else "Unknown"
-                det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
-                text = f"ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
-                # cv2.putText(img, text, (largest_bbox[0], largest_bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                center_x = largest_bbox[0] + largest_bbox[2] // 2
-                center_y = largest_bbox[1] + largest_bbox[3] // 2
-                arduino.write((str(center_x) + ":" + str(center_y) + 'x').encode())
+                # track_id = track.track_id if track.track_id is not None else "Unknown"
+                # det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
+                center_x = largest_bbox[0] + largest_bbox[2] / 2
+                center_y = int(largest_bbox[1] + largest_bbox[3] * DETECTION_Y_PORCENT)
+                # text = f" Distance: {abs(center_x - mouse_x),abs(center_y - mouse_y)}, ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
+                # cv2.putText(img, text, (largest_bbox[0], largest_bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)  
+                adjusted_center_x, adjusted_center_y = adjust_center(center_x, center_y, mouse_x, mouse_y)
+                arduino.write((str(adjusted_center_x).split('.')[0] + ":" + str(adjusted_center_y).split('.')[0] + 'x').encode())
+                time.sleep(0.08)
             # cv2.imshow('Object Tracking', img)
-            
-            #bbox = max_conf_nearest_object(trackers)
-            # if bbox is not None:  
-            #     aim_absolute(bbox, arduino)
-            #     cv2.rectangle(img, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), (0, 255, 0), 2)
-            # cv2.imshow('Object Detection', img)
                 
             if keyboard.is_pressed('i'):
                 classes = [2]
-                CONFIDENCE_THRESHOLD = 0.6
+                CONFIDENCE_THRESHOLD = 0.75
+                DETECTION_Y_PORCENT = 0.5
                 print('ct_head')
+                continue
             if keyboard.is_pressed('j'):
                 classes = [1]
-                CONFIDENCE_THRESHOLD = 0.93
+                CONFIDENCE_THRESHOLD = 0.9
+                DETECTION_Y_PORCENT = 0.05
                 print('ct_body')
+                continue
             if keyboard.is_pressed('o'):
                 classes = [4]
-                CONFIDENCE_THRESHOLD = 0.6
+                CONFIDENCE_THRESHOLD = 0.75
+                DETECTION_Y_PORCENT = 0.5
                 print('t_head')
+                continue
             if keyboard.is_pressed('k'):
-                CONFIDENCE_THRESHOLD = 0.93
                 classes = [3]
+                CONFIDENCE_THRESHOLD = 0.9
+                DETECTION_Y_PORCENT = 0.05
                 print('t_body')
+                continue
             if keyboard.is_pressed('l'):
                 classes = [0]
                 print('none')
-            if cv2.waitKey(1) & 0xFF == ord('q'):  # Agrega esto para actualizar la ventana de OpenCV
-                break
-            # if keyboard.is_pressed('q') & 0xFF == ord('q'):
+                continue
+            # if cv2.waitKey(1) & 0xFF == ord('q'):  # Agrega esto para actualizar la ventana de OpenCV
             #     break
-    cv2.destroyAllWindows()
+            if keyboard.is_pressed('q') & 0xFF == ord('q'):
+                break
+    # cv2.destroyAllWindows()
         
 if __name__ == "__main__":
     main()
