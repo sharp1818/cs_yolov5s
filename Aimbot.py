@@ -7,7 +7,6 @@ import serial
 from deep_sort_realtime.deepsort_tracker import DeepSort
 from PIL import Image
 import serial.tools.list_ports
-import cv2
 import time
 
 max_age = 5  # Reducir para mantener un seguimiento más corto y fresco de los objetos
@@ -161,8 +160,9 @@ def main():
             trackers = deepsort.update_tracks(bbs, frame=img)
             largest_bbox = None
             largest_area = 0
-            mouse_x, mouse_y = 960, 540
+            mouse_x, mouse_y = width/2, height/2
             nearest_distance = float('inf')
+            max_conf = 0
             for track in trackers:
                 bbox = track.to_tlwh()  # Obtiene las coordenadas superior izquierda, ancho y alto del bounding box
                 bbox = [int(coord) for coord in bbox]  # Convierte las coordenadas a enteros
@@ -170,40 +170,21 @@ def main():
                 bbox_center_y = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
                 det_conf = track.det_conf  # Obtener la confianza del detector
                 distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
-
-                # if det_conf is not None and det_conf > CONFIDENCE_THRESHOLD:
-                #     cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (255, 255, 0), 2)
-                #     # Verificar si track.track_id y det_conf son None antes de formatear la cadena
-                #     track_id = track.track_id if track.track_id is not None else "Unknown"
-                #     det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
-                #     text = f"ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
-                #     cv2.putText(img, text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-        
-                try:
-                    track_id = int(track.track_id) if track.track_id is not None else float('inf')
-                except ValueError:
-                    track_id = float('inf')
                 
-                if det_conf is not None and det_conf > CONFIDENCE_THRESHOLD:
+                if det_conf is not None and det_conf > max_conf:
                     area = bbox[2] * bbox[3]
                     if area > largest_area and distance < nearest_distance:
+                        max_conf = det_conf
                         nearest_distance = distance
                         largest_area = area
                         largest_bbox = bbox
             if largest_bbox is not None:
-                # cv2.rectangle(img, (largest_bbox[0], largest_bbox[1]), (largest_bbox[0] + largest_bbox[2], largest_bbox[1] + largest_bbox[3]), (255, 255, 0), 2)
-                # Verificar si track.track_id y det_conf son None antes de formatear la cadena
-                # track_id = track.track_id if track.track_id is not None else "Unknown"
-                # det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
-                # text = f" Distance: {abs(center_x - mouse_x),abs(center_y - mouse_y)}, ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
-                # cv2.putText(img, text, (largest_bbox[0], largest_bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)  
                 aim(largest_bbox, mouse_x, mouse_y, arduino)
                 time.sleep(0.08)
-            # cv2.imshow('Object Tracking', img)
                 
             if keyboard.is_pressed('i'):
                 classes = [2]
-                CONFIDENCE_THRESHOLD = 0.75
+                CONFIDENCE_THRESHOLD = 0.8
                 DETECTION_Y_PORCENT = 0.5
                 print('ct_head')
                 continue
@@ -215,7 +196,7 @@ def main():
                 continue
             if keyboard.is_pressed('o'):
                 classes = [4]
-                CONFIDENCE_THRESHOLD = 0.75
+                CONFIDENCE_THRESHOLD = 0.8
                 DETECTION_Y_PORCENT = 0.5
                 print('t_head')
                 continue
@@ -229,11 +210,8 @@ def main():
                 classes = [0]
                 print('none')
                 continue
-            # if cv2.waitKey(1) & 0xFF == ord('q'):  # Agrega esto para actualizar la ventana de OpenCV
-            #     break
             if keyboard.is_pressed('q') & 0xFF == ord('q'):
                 break
-    # cv2.destroyAllWindows()
         
 if __name__ == "__main__":
     main()
