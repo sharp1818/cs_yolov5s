@@ -38,104 +38,6 @@ def init_arduino():
         print("No se detectaron puertos de Arduino. Verifica la conexión.")
         return(arduino)
 
-def find_nearest_object(trackers):
-    nearest_distance = float('inf')
-    nearest_object_bbox = None
-    mouse_x, mouse_y = 960, 540
-    for track in trackers:
-        if track.is_confirmed():
-            bbox = track.to_ltrb()
-            bbox_center_x = (bbox[0] + bbox[2]) / 2
-            bbox_center_y = (bbox[1] + bbox[3]) / 2
-            distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
-            if distance < nearest_distance:
-                nearest_distance = distance
-                nearest_object_bbox = track.to_ltrb()
-    return nearest_object_bbox
-
-def max_conf_nearest_object(trackers):
-    max_det_conf = 0
-    nearest_distance = float('inf')
-    selected_bbox = None
-    mouse_x, mouse_y = 960, 540
-    for track in trackers:
-        if track.is_confirmed():
-            det_conf = track.det_conf
-            if det_conf is not None:
-                bbox = track.to_ltrb()
-                bbox_center_x = (bbox[0] + bbox[2]) / 2
-                bbox_center_y = (bbox[1] + bbox[3]) / 2
-                distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
-                
-                if det_conf > max_det_conf or (det_conf == max_det_conf and distance < nearest_distance):
-                    max_det_conf = det_conf
-                    nearest_distance = distance
-                    selected_bbox = track.to_ltrb()
-                
-    return selected_bbox
-
-def max_conf_object(trackers):
-    max_det_conf = 0
-    max_det_conf_bbox = None
-    for track in trackers:
-        if track.is_confirmed():
-            det_conf = track.det_conf
-            if det_conf is not None and det_conf > max_det_conf:
-                max_det_conf = det_conf
-                max_det_conf_bbox = track.to_ltrb()
-    if max_det_conf_bbox is not None:
-        return max_det_conf_bbox
-
-def firts_object(trackers):
-    if trackers:
-        first_track = trackers[0]
-        if first_track.is_confirmed():
-            bbox = first_track.to_ltrb()
-            return bbox
-    return None
-
-def min_id_object(trackers):
-    min_id = float('inf')
-    
-    for track in trackers:
-        if track.track_id < min_id:
-            min_id = track.track_id
-            min_id_object_bbox = track.to_ltrb()
-    if min_id_object_bbox is not None:
-        return min_id_object_bbox
-    
-def max_conf_min_id_object(trackers):
-    max_det_conf = 0
-    min_id = float('inf')
-    max_conf_min_id_bbox = None
-    
-    for track in trackers:
-        if track.det_conf is not None: 
-            if track.det_conf > max_det_conf:
-                max_det_conf = track.det_conf
-                min_id = track.track_id
-                max_conf_min_id_bbox = track.to_ltrb()
-            elif track.det_conf == max_det_conf:
-                if track.track_id < min_id:
-                    min_id = track.track_id
-                    max_conf_min_id_bbox = track.to_ltrb()
-                
-    return max_conf_min_id_bbox
-
-def aim(bbox, mouse_x, mouse_y, arduino):
-    centerX = int((bbox[2] + bbox[0]) / 2)
-    centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
-    moveX = int((centerX - mouse_x))
-    moveY = int((-centerY + mouse_y))
-  #  print(moveX,moveY)
-    return arduino.write((str(moveX) + ":" + str(moveY) + 'x').encode())
-
-def aim_absolute(bbox, arduino):
-    centerX = int((bbox[2] + bbox[0]) / 2)
-    centerY = int((bbox[3] + bbox[1]) / 2 - (bbox[3] - bbox[1]) / 2 * DETECTION_Y_PORCENT)
-    print(centerX, centerY)
-    return arduino.write((str(centerX) + ":" + str(centerY) + 'x').encode())
-
 def convert_to_bbs(results, classes):
     bbs = []
     for obj in results.xyxy[0].tolist():
@@ -220,6 +122,12 @@ def adjust_center(center_x, center_y, mouse_x, mouse_y):
 
     return adjusted_center_x, adjusted_center_y
 
+def aim(bbox, mouse_x, mouse_y, arduino):
+    centerX = int(bbox[0] + bbox[2] / 2)
+    centerY = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
+    adjusted_center_x, adjusted_center_y = adjust_center(centerX, centerY, mouse_x, mouse_y)
+    return arduino.write((str(adjusted_center_x).split('.')[0] + ":" + str(adjusted_center_y).split('.')[0] + 'x').encode())
+
 def main():
     global CONFIDENCE_THRESHOLD
     global DETECTION_Y_PORCENT
@@ -278,9 +186,6 @@ def main():
                 
                 if det_conf is not None and det_conf > CONFIDENCE_THRESHOLD:
                     area = bbox[2] * bbox[3]
-                    # if area > largest_area:
-                    #     largest_area = area
-                    #     largest_bbox = bbox
                     if area > largest_area and distance < nearest_distance:
                         nearest_distance = distance
                         largest_area = area
@@ -290,12 +195,9 @@ def main():
                 # Verificar si track.track_id y det_conf son None antes de formatear la cadena
                 # track_id = track.track_id if track.track_id is not None else "Unknown"
                 # det_conf_str = f"{det_conf:.2f}" if det_conf is not None else "Unknown"
-                center_x = largest_bbox[0] + largest_bbox[2] / 2
-                center_y = int(largest_bbox[1] + largest_bbox[3] * DETECTION_Y_PORCENT)
                 # text = f" Distance: {abs(center_x - mouse_x),abs(center_y - mouse_y)}, ID: {track_id}, Conf: {det_conf_str}, Área: {largest_area}"
                 # cv2.putText(img, text, (largest_bbox[0], largest_bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)  
-                adjusted_center_x, adjusted_center_y = adjust_center(center_x, center_y, mouse_x, mouse_y)
-                arduino.write((str(adjusted_center_x).split('.')[0] + ":" + str(adjusted_center_y).split('.')[0] + 'x').encode())
+                aim(largest_bbox, mouse_x, mouse_y, arduino)
                 time.sleep(0.08)
             # cv2.imshow('Object Tracking', img)
                 
