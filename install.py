@@ -1,7 +1,7 @@
 import subprocess
 import os
 import platform
-import requests
+# import requests
 
 def install_git():
     # Verificar si Git está instalado
