@@ -53,7 +53,24 @@ def clone_repository():
         # Clonar el repositorio de YOLOv5
         print("Cloning YOLOv5 repository...")
         subprocess.run(['git', 'clone', 'https://github.com/ultralytics/yolov5.git'], check=True)
-        os.chdir('yolov5')  # Cambiar al directorio clonado
+        # os.chdir('yolov5')  # Cambiar al directorio clonado
+
+
+def activate_venv():
+    activate_path = os.path.join('myenv', 'Scripts', 'activate')
+    subprocess.run([activate_path], shell=True)
+
+def install_requirements():
+    try:
+        subprocess.run(['pip', 'install', '-r', 'requirements.txt'], check=True)
+        print("Dependencias instaladas.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error instalando dependencias: {e}")
+        raise
+
+def deactivate_venv():
+    deactivate_path = os.path.join('myenv', 'Scripts', 'deactivate')
+    subprocess.run([deactivate_path], shell=True)
 
 if __name__ == "__main__":
     # Instalar Git fuera del entorno virtual
@@ -68,6 +85,9 @@ if __name__ == "__main__":
     subprocess.run([activate_path], shell=True)
     
     try:
+        activate_venv()
+        install_requirements()
+        deactivate_venv()
         clone_repository()
         install_dependencies()
     finally:
