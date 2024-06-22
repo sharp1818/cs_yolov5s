@@ -57,6 +57,8 @@ def clone_repository():
 
 
 def activate_venv():
+    # Crear y activar un entorno virtual
+    subprocess.run(['python', '-m', 'venv', 'myenv'], check=True)
     activate_path = os.path.join('myenv', 'Scripts', 'activate')
     subprocess.run([activate_path], shell=True)
 
@@ -75,14 +77,8 @@ def deactivate_venv():
 if __name__ == "__main__":
     # Instalar Git fuera del entorno virtual
     install_git()
-    
     # Instalar Python si no está instalado
     install_python()
-    
-    # Crear y activar un entorno virtual
-    subprocess.run(['python', '-m', 'venv', 'myenv'], check=True)
-    activate_path = os.path.join('myenv', 'Scripts', 'activate')
-    subprocess.run([activate_path], shell=True)
     
     try:
         activate_venv()
