@@ -18,8 +18,8 @@ deepsort = DeepSort(
 )
 
 arduino = None
-CONFIDENCE_THRESHOLD = 0.9
-DETECTION_Y_PORCENT = 0.5
+CONFIDENCE_THRESHOLD = None
+DETECTION_Y_PORCENT = None
 
 def detect_arduino_port():
     arduino_ports = []
@@ -122,8 +122,8 @@ def adjust_center(center_x, center_y, mouse_x, mouse_y):
     return adjusted_center_x, adjusted_center_y
 
 def aim(bbox, mouse_x, mouse_y, arduino):
-    centerX = int(bbox[0] + bbox[2] / 2)
-    centerY = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
+    centerX = (bbox[0] + bbox[2] / 2)
+    centerY = (bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
     adjusted_center_x, adjusted_center_y = adjust_center(centerX, centerY, mouse_x, mouse_y)
     return arduino.write((str(adjusted_center_x).split('.')[0] + ":" + str(adjusted_center_y).split('.')[0] + 'x').encode())
 
@@ -154,60 +154,63 @@ def main():
         bbox = None
         
         while True:
-            img = np.array(Image.frombytes('RGB', (width, height), sct.grab(monitor).rgb))
-            results = model(img)     
-            bbs = convert_to_bbs(results, classes)    
-            trackers = deepsort.update_tracks(bbs, frame=img)
-            largest_bbox = None
-            largest_area = 0
-            mouse_x, mouse_y = width/2, height/2
-            nearest_distance = float('inf')
-            max_conf = 0
-            for track in trackers:
-                bbox = track.to_tlwh()  # Obtiene las coordenadas superior izquierda, ancho y alto del bounding box
-                bbox = [int(coord) for coord in bbox]  # Convierte las coordenadas a enteros
-                bbox_center_x = (bbox[0] + bbox[2]) / 2
-                bbox_center_y = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
-                det_conf = track.det_conf  # Obtener la confianza del detector
-                distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
-                
-                if det_conf is not None and det_conf > max_conf:
-                    area = bbox[2] * bbox[3]
-                    if area > largest_area and distance < nearest_distance:
-                        max_conf = det_conf
-                        nearest_distance = distance
-                        largest_area = area
-                        largest_bbox = bbox
-            if largest_bbox is not None:
-                aim(largest_bbox, mouse_x, mouse_y, arduino)
-                time.sleep(0.08)
+            if classes != [0]:
+                img = np.array(Image.frombytes('RGB', (width, height), sct.grab(monitor).rgb))
+                results = model(img)     
+                bbs = convert_to_bbs(results, classes)    
+                trackers = deepsort.update_tracks(bbs, frame=img)
+                largest_bbox = None
+                largest_area = 0
+                mouse_x, mouse_y = width/2, height/2
+                nearest_distance = float('inf')
+                max_conf = 0
+                for track in trackers:
+                    bbox = track.to_tlwh()  # Obtiene las coordenadas superior izquierda, ancho y alto del bounding box
+                    bbox = [int(coord) for coord in bbox]  # Convierte las coordenadas a enteros
+                    bbox_center_x = int(bbox[0] + bbox[2] / 2)
+                    bbox_center_y = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
+                    det_conf = track.det_conf  # Obtener la confianza del detector
+                    distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
+                    
+                    if det_conf is not None and det_conf > max_conf:
+                        area = bbox[2] * bbox[3]
+                        if area > largest_area and distance < nearest_distance:
+                            max_conf = det_conf
+                            nearest_distance = distance
+                            largest_area = area
+                            largest_bbox = bbox
+                if largest_bbox is not None:
+                    aim(largest_bbox, mouse_x, mouse_y, arduino)
+                    time.sleep(0.08)
                 
             if keyboard.is_pressed('i'):
                 classes = [2]
                 CONFIDENCE_THRESHOLD = 0.8
-                DETECTION_Y_PORCENT = 0.5
-                print('ct_head')
+                DETECTION_Y_PORCENT = 0.1
+                print('ct_head', DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('j'):
                 classes = [1]
                 CONFIDENCE_THRESHOLD = 0.9
-                DETECTION_Y_PORCENT = 0.05
-                print('ct_body')
+                DETECTION_Y_PORCENT = 0.2
+                print('ct_body', DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('o'):
                 classes = [4]
                 CONFIDENCE_THRESHOLD = 0.8
-                DETECTION_Y_PORCENT = 0.5
-                print('t_head')
+                DETECTION_Y_PORCENT = 0.1
+                print('t_head', DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('k'):
                 classes = [3]
                 CONFIDENCE_THRESHOLD = 0.9
-                DETECTION_Y_PORCENT = 0.05
-                print('t_body')
+                DETECTION_Y_PORCENT = 0.2
+                print('t_body', DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('l'):
                 classes = [0]
+                CONFIDENCE_THRESHOLD = None
+                DETECTION_Y_PORCENT = None
                 print('none')
                 continue
             if keyboard.is_pressed('q') & 0xFF == ord('q'):
