@@ -1,4 +1,5 @@
 import mss
+from colorama import Fore, Style, init
 import numpy as np
 import math
 import keyboard
@@ -20,7 +21,20 @@ deepsort = DeepSort(
 arduino = None
 CONFIDENCE_THRESHOLD = None
 DETECTION_Y_PORCENT = None
+init(autoreset=True)
 
+def print_status(status_message):
+    print(f"{Fore.CYAN}{status_message}{Style.RESET_ALL}")
+    
+def show_instructions():
+    print(Fore.CYAN + "Configuración de teclas:" + Style.RESET_ALL)
+    print(Fore.YELLOW + "i: ct_head" + Style.RESET_ALL)
+    print(Fore.YELLOW + "j: ct_body" + Style.RESET_ALL)
+    print(Fore.YELLOW + "o: t_head" + Style.RESET_ALL)
+    print(Fore.YELLOW + "k: t_body" + Style.RESET_ALL)
+    print(Fore.YELLOW + "l: none" + Style.RESET_ALL)
+    print(Fore.RED + "q: salir" + Style.RESET_ALL)
+    
 def detect_arduino_port():
     arduino_ports = []
     for port in serial.tools.list_ports.comports():
@@ -152,7 +166,8 @@ def main():
         
         classes = [0]
         bbox = None
-        
+        show_instructions()
+
         while True:
             if classes != [0]:
                 img = np.array(Image.frombytes('RGB', (width, height), sct.grab(monitor).rgb))
@@ -182,36 +197,35 @@ def main():
                 if largest_bbox is not None:
                     aim(largest_bbox, mouse_x, mouse_y, arduino)
                     time.sleep(0.02)
-                
             if keyboard.is_pressed('i'):
                 classes = [2]
                 CONFIDENCE_THRESHOLD = 0.8
-                DETECTION_Y_PORCENT = 0.1
-                print('ct_head', DETECTION_Y_PORCENT)
+                DETECTION_Y_PORCENT = 0.5
+                print_status(f"[INFO] Configuración: ct_head, confidence={CONFIDENCE_THRESHOLD}")
                 continue
             if keyboard.is_pressed('j'):
                 classes = [1]
                 CONFIDENCE_THRESHOLD = 0.9
-                DETECTION_Y_PORCENT = 0.2
-                print('ct_body', DETECTION_Y_PORCENT)
+                DETECTION_Y_PORCENT = 0.1
+                print_status(f"[INFO] Configuración: ct_body, confidence={CONFIDENCE_THRESHOLD}")
                 continue
             if keyboard.is_pressed('o'):
                 classes = [4]
                 CONFIDENCE_THRESHOLD = 0.8
-                DETECTION_Y_PORCENT = 0.1
-                print('t_head', DETECTION_Y_PORCENT)
+                DETECTION_Y_PORCENT = 0.5
+                print_status(f"[INFO] Configuración: t_head, confidence={CONFIDENCE_THRESHOLD}")
                 continue
             if keyboard.is_pressed('k'):
                 classes = [3]
                 CONFIDENCE_THRESHOLD = 0.9
-                DETECTION_Y_PORCENT = 0.2
-                print('t_body', DETECTION_Y_PORCENT)
+                DETECTION_Y_PORCENT = 0.1
+                print_status(f"[INFO] Configuración: t_body, confidence={CONFIDENCE_THRESHOLD}")
                 continue
             if keyboard.is_pressed('l'):
                 classes = [0]
                 CONFIDENCE_THRESHOLD = None
                 DETECTION_Y_PORCENT = None
-                print('none')
+                print_status(f"[INFO] Configuración: none")
                 continue
             if keyboard.is_pressed('q') & 0xFF == ord('q'):
                 break

@@ -9,3 +9,4 @@ PyAutoGUI==0.9.54
 pyserial==3.5
 Requests==2.31.0
 torch==2.2.0+cu118
+colorama==0.4.6
