@@ -1,4 +1,4 @@
 @echo off
 REM Ejecutar el script de ejecución
-python run.py
+python runCV2.py
 pause

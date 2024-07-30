@@ -8,6 +8,7 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 from PIL import Image
 import serial.tools.list_ports
 import time
+import cv2
 
 max_age = 5  # Reducir para mantener un seguimiento más corto y fresco de los objetos
 max_iou_distance = 0.7  # Ajustar según la superposición requerida entre cuadros delimitadores
@@ -151,6 +152,7 @@ def main():
         }
         
         classes = [0]
+        name_detection = None
         bbox = None
         
         while True:
@@ -170,8 +172,7 @@ def main():
                     bbox_center_x = int(bbox[0] + bbox[2] / 2)
                     bbox_center_y = int(bbox[1] + bbox[3] * DETECTION_Y_PORCENT)
                     det_conf = track.det_conf  # Obtener la confianza del detector
-                    distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)
-                    
+                    distance = math.sqrt((bbox_center_x - mouse_x)**2 + (bbox_center_y - mouse_y)**2)    
                     if det_conf is not None and det_conf > max_conf:
                         area = bbox[2] * bbox[3]
                         if area > largest_area and distance < nearest_distance:
@@ -179,36 +180,61 @@ def main():
                             nearest_distance = distance
                             largest_area = area
                             largest_bbox = bbox
+                # ## Detectar objetos ####################################################################################
+                #     cv2.rectangle(img, 
+                #                   (bbox[0], bbox[1]), 
+                #                   (bbox[0] + bbox[2], bbox[1] + bbox[3]), 
+                #                   (160, 40, 180), 2)
+                #     text = f'conf:{det_conf:.2f} class:{name_detection}' if det_conf is not None else 'N/A'
+                #     cv2.putText(img, text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (140, 230, 160), 2)
+                # cv2.imshow('Deteccion de objetos', img)
+                # cv2.waitKey(1)
+                # ########################################################################################################
                 if largest_bbox is not None:
+                    # ## Detectar y seguir objeto ########################################################################
+                    # cv2.rectangle(img, 
+                    #               (largest_bbox[0], largest_bbox[1]), 
+                    #               (largest_bbox[0] + largest_bbox[2], largest_bbox[1] + largest_bbox[3]), 
+                    #               (160, 40, 180), 2)
+                    # text = f'conf:{det_conf:.2f} class:{name_detection}' if det_conf is not None else 'N/A'
+                    # cv2.putText(img, text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (140, 230, 160), 2)
+                    # cv2.imshow('Deteccion y seguimiento de objeto', img)
+                    # cv2.waitKey(1)
+                    # ####################################################################################################
                     aim(largest_bbox, mouse_x, mouse_y, arduino)
                     time.sleep(0.02)
                 
             if keyboard.is_pressed('i'):
                 classes = [2]
+                name_detection = 'ct_head'
                 CONFIDENCE_THRESHOLD = 0.8
                 DETECTION_Y_PORCENT = 0.1
-                print('ct_head', DETECTION_Y_PORCENT)
+                print(name_detection, DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('j'):
                 classes = [1]
+                name_detection = 'ct_body'
                 CONFIDENCE_THRESHOLD = 0.9
                 DETECTION_Y_PORCENT = 0.2
-                print('ct_body', DETECTION_Y_PORCENT)
+                print(name_detection, DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('o'):
                 classes = [4]
+                name_detection = 't_head'
                 CONFIDENCE_THRESHOLD = 0.8
                 DETECTION_Y_PORCENT = 0.1
-                print('t_head', DETECTION_Y_PORCENT)
+                print(name_detection, DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('k'):
                 classes = [3]
+                name_detection = 't_body'
                 CONFIDENCE_THRESHOLD = 0.9
                 DETECTION_Y_PORCENT = 0.2
-                print('t_body', DETECTION_Y_PORCENT)
+                print(name_detection, DETECTION_Y_PORCENT)
                 continue
             if keyboard.is_pressed('l'):
                 classes = [0]
+                name_detection = None
                 CONFIDENCE_THRESHOLD = None
                 DETECTION_Y_PORCENT = None
                 print('none')
