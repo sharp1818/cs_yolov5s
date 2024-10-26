@@ -34,6 +34,7 @@ def show_instructions():
     print(Fore.YELLOW + "k: t_body" + Style.RESET_ALL)
     print(Fore.YELLOW + "l: none" + Style.RESET_ALL)
     print(Fore.RED + "q: salir" + Style.RESET_ALL)
+    print(Fore.CYAN + "Presiona una tecla..." + Style.RESET_ALL)
     
 def detect_arduino_port():
     arduino_ports = []
