@@ -196,12 +196,20 @@ def main():
                             largest_area = area
                             largest_bbox = bbox
                 # ## Detectar objetos ####################################################################################
+                    if det_conf is not None:
+                        cv2.rectangle(img, 
+                                    (bbox[0], bbox[1]), 
+                                    (bbox[0] + bbox[2], bbox[1] + bbox[3]), 
+                                    (140, 0, 255), 2)
+                        text = f'conf:{det_conf:.2f} class:{name_detection}'
+                        coord_text = f'bbox: ({bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]})'
+                        cv2.putText(img, text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (140, 0, 255), 2)
+                        cv2.putText(img, coord_text, (bbox[0], bbox[1] + bbox[3] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                if largest_bbox is not None:
                     cv2.rectangle(img, 
-                                  (bbox[0], bbox[1]), 
-                                  (bbox[0] + bbox[2], bbox[1] + bbox[3]), 
-                                  (140, 0, 255), 2)
-                    text = f'conf:{det_conf:.2f} class:{name_detection}' if det_conf is not None else 'N/A'
-                    cv2.putText(img, text, (bbox[0], bbox[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (160, 255, 0), 2)
+                        (largest_bbox[0], largest_bbox[1]), 
+                        (largest_bbox[0] + largest_bbox[2], largest_bbox[1] + largest_bbox[3]), 
+                        (0, 255, 0), 2)
                 cv2.imshow('Deteccion de objetos', img)
                 cv2.waitKey(1)
                 # ########################################################################################################
