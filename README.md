@@ -23,3 +23,5 @@ Una vez completada la instalación, puedes ejecutar el proyecto para realizar la
 7. Presiona l para no detectar.
 
 ¡Y eso es todo! Ahora estás listo para ejecutar el proyecto `cs_yolov5s` y realizar la detección de objetos.
+![5](https://github.com/user-attachments/assets/de135d18-e6d0-4ade-88d6-b6674b7e17fa)
+![2](https://github.com/user-attachments/assets/3d531a7f-5784-463e-ad60-fe34acf9930b)
