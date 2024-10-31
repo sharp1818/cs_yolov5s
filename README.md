@@ -5,7 +5,7 @@ Este es un proyecto que utiliza YOLOv5 para realizar detección de objetos en ti
 ## Requisitos
 Arduino Leonardo con USB-HostShield
 ![image](https://github.com/user-attachments/assets/5e2b5a4b-c951-44bc-81e8-24f3ea8d2141)
-Cargar código 
+Cargar código
 https://github.com/sharp1818/mouse
 
 ## Instalación
