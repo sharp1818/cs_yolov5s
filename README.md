@@ -3,13 +3,9 @@
 Este es un proyecto que utiliza YOLOv5 para realizar detección de objetos en tiempo real.
 
 ## Requisitos
-1. Cargar código: https://github.com/sharp1818/mouse 
-Arduino Leonardo con USB-HostShield
+1. Cargar código: https://github.com/sharp1818/mouse en **Arduino Leonardo con USB-HostShield**
 ![image](https://github.com/user-attachments/assets/5e2b5a4b-c951-44bc-81e8-24f3ea8d2141)
-2. ![image](https://github.com/user-attachments/assets/5e2b5a4b-c951-44bc-81e8-24f3ea8d2141)
-3. Cargar código: https://github.com/sharp1818/mouse
-4. Tarjeja gráfica NVIDIA compatible con CUDA
-5. https://developer.nvidia.com/cuda-gpus
+2. Tarjeja gráfica NVIDIA compatible con CUDA: https://developer.nvidia.com/cuda-gpus
 
 ## Instalación
 
